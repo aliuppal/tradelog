@@ -93,8 +93,42 @@ img { max-width: 100%; }
 .sidebar.collapsed .user-details,
 .sidebar.collapsed .sign-out-btn { display: none; }
 .sidebar.collapsed .sidebar-logo { justify-content: center; padding: 20px 0 16px; }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
-.sidebar.collapsed .nav-item i { width: auto; }
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+  width: 100%;
+  border-left: none;
+  position: relative;
+}
+.sidebar.collapsed .nav-item i { width: auto; font-size: 1rem; }
+.sidebar.collapsed .nav-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-left: none;
+  border-radius: var(--radius-sm);
+}
+/* Tooltip on hover when collapsed */
+.sidebar.collapsed .nav-item::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 200;
+  box-shadow: var(--shadow-sm);
+}
+.sidebar.collapsed .nav-item:hover::after { opacity: 1; }
 .sidebar.collapsed .sidebar-bottom { justify-content: center; padding: 12px 0; }
 .sidebar.collapsed .user-info { justify-content: center; }
 .sidebar.collapsed .sidebar-collapse-btn { right: 50%; transform: translate(50%, -50%); }
@@ -218,17 +252,11 @@ img { max-width: 100%; }
 
 /* ── Page Container ─────────────────────────────────────────── */
 .page-container {
-  margin-left: var(--sidebar-w);
+  margin-left: var(--sidebar-w-collapsed);
   min-height: 100vh;
   padding: 32px;
-  width: calc(100% - var(--sidebar-w));
-  transition: margin-left 0.25s ease, width 0.25s ease;
-}
-/* When sidebar is collapsed, expand the content area */
-.sidebar.collapsed ~ .topbar + .page-container,
-.app-shell:has(.sidebar.collapsed) .page-container {
-  margin-left: var(--sidebar-w-collapsed);
   width: calc(100% - var(--sidebar-w-collapsed));
+  transition: margin-left 0.25s ease, width 0.25s ease;
 }
 
 /* ── Page common ────────────────────────────────────────────── */

@@ -1166,6 +1166,39 @@ textarea { resize: vertical; min-height: 80px; }
 }
 .dropdown-item:hover { background: var(--bg-surface); color: var(--text-primary); }
 
+/* ── Funded — two-column layout ─────────────────────────────── */
+.funded-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 20px;
+  align-items: flex-start;
+}
+.funded-main { min-width: 0; }
+.funded-cost-panel { position: sticky; top: 20px; }
+
+/* Purchase price row on card */
+.fa-purchase-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+}
+.fa-purchase-row i { color: var(--gold); }
+.fa-purchase-date { color: var(--text-muted); margin-left: auto; }
+
+/* Monthly current highlight */
+.monthly-current {
+  background: var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.monthly-left { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+
 /* ── Live Accounts ───────────────────────────────────────────── */
 .live-layout {
   display: grid;
@@ -1266,6 +1299,7 @@ textarea { resize: vertical; min-height: 80px; }
 
   .fa-grid { grid-template-columns: 1fr; }
   .live-layout { grid-template-columns: 1fr; }
+  .funded-layout { grid-template-columns: 1fr; }
 
   .cal-cell { min-height: 55px; }
   .cal-pnl { display: none; }

@@ -24,6 +24,7 @@ create table if not exists public.funded_accounts (
   daily_loss_limit numeric(5,2),       -- % e.g. 2.00
 
   login_id     text,                   -- account number (optional)
+  purchase_price numeric(10,2),         -- what you paid for this account/challenge
   notes        text,
 
   created_at   timestamptz not null default now(),

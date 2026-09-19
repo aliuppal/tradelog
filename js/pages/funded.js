@@ -10,7 +10,7 @@ async function fetchFunded() {
     .from('funded_accounts')
     .select('*')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('start_date', { ascending: false });
   if (error) { console.error(error); return []; }
   return data || [];
 }
@@ -35,6 +35,29 @@ async function deleteFunded(id) {
   if (error) throw error;
 }
 
+// ─── Monthly cost aggregation ─────────────────────────────────
+// Groups accounts by the month of start_date, sums purchase_price
+function groupByPurchaseMonth(accounts) {
+  const map = {};
+  for (const a of accounts) {
+    if (!a.purchase_price) continue;
+    // Use start_date month; fall back to created_at month
+    const rawDate = a.start_date || a.created_at?.slice(0, 10);
+    if (!rawDate) continue;
+    const key = rawDate.slice(0, 7); // YYYY-MM
+    if (!map[key]) map[key] = { total: 0, count: 0, accounts: [] };
+    map[key].total += parseFloat(a.purchase_price);
+    map[key].count++;
+    map[key].accounts.push(a);
+  }
+  return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+}
+
+function formatMonthLabel(key) {
+  const [y, m] = key.split('-');
+  return new Date(+y, +m - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
 // ─── Page render ──────────────────────────────────────────────
 export async function renderFunded(container) {
   container.innerHTML = `<div class="page-loading"><span class="spinner"></span></div>`;
@@ -43,8 +66,18 @@ export async function renderFunded(container) {
 }
 
 function mount(container, accounts) {
-  const active = accounts.filter(a => a.status === 'active').length;
-  const totalSize = accounts.filter(a => a.status === 'active').reduce((s, a) => s + parseFloat(a.account_size || 0), 0);
+  const active    = accounts.filter(a => a.status === 'active').length;
+  const breached  = accounts.filter(a => a.status === 'breached').length;
+  const totalCapital = accounts.filter(a => a.status === 'active')
+    .reduce((s, a) => s + parseFloat(a.account_size || 0), 0);
+  const totalSpent = accounts.reduce((s, a) => s + parseFloat(a.purchase_price || 0), 0);
+
+  // Monthly cost data
+  const monthlyGroups = groupByPurchaseMonth(accounts);
+
+  // Current month cost
+  const thisMonthKey = new Date().toISOString().slice(0, 7);
+  const thisMonthCost = monthlyGroups.find(([k]) => k === thisMonthKey)?.[1]?.total || 0;
 
   container.innerHTML = `
     <div class="page funded-page">
@@ -58,7 +91,7 @@ function mount(container, accounts) {
         </button>
       </div>
 
-      <!-- Summary strip -->
+      <!-- KPI Summary -->
       <div class="fa-summary">
         <div class="card fa-sum-card">
           <span class="fa-sum-label">Total Accounts</span>
@@ -70,28 +103,65 @@ function mount(container, accounts) {
         </div>
         <div class="card fa-sum-card">
           <span class="fa-sum-label">Breached</span>
-          <span class="fa-sum-val pnl-negative">${accounts.filter(a => a.status === 'breached').length}</span>
+          <span class="fa-sum-val pnl-negative">${breached}</span>
         </div>
         <div class="card fa-sum-card">
-          <span class="fa-sum-label">Total Capital (Active)</span>
-          <span class="fa-sum-val">${formatCurrency(totalSize)}</span>
+          <span class="fa-sum-label">Active Capital</span>
+          <span class="fa-sum-val">${formatCurrency(totalCapital)}</span>
+        </div>
+        <div class="card fa-sum-card">
+          <span class="fa-sum-label">Total Spent</span>
+          <span class="fa-sum-val pnl-negative">${formatCurrency(totalSpent)}</span>
+        </div>
+        <div class="card fa-sum-card">
+          <span class="fa-sum-label">This Month Cost</span>
+          <span class="fa-sum-val pnl-negative">${formatCurrency(thisMonthCost)}</span>
         </div>
       </div>
 
-      <!-- Accounts grid -->
-      ${accounts.length ? `
-        <div class="fa-grid" id="fa-grid">
-          ${accounts.map(accountCard).join('')}
-        </div>` : `
-        <div class="card">
-          <div class="empty-state">
-            <i class="fa-solid fa-building-columns"></i>
-            <p>No funded accounts yet</p>
-            <p class="empty-sub">Add your first prop firm account to get started</p>
-            <button class="btn-primary mt-2" id="fa-empty-add">Add Account</button>
+      <div class="funded-layout">
+        <!-- Accounts Grid -->
+        <div class="funded-main">
+          ${accounts.length ? `
+            <div class="fa-grid" id="fa-grid">
+              ${accounts.map(accountCard).join('')}
+            </div>` : `
+            <div class="card">
+              <div class="empty-state">
+                <i class="fa-solid fa-building-columns"></i>
+                <p>No funded accounts yet</p>
+                <p class="empty-sub">Add your first prop firm account to get started</p>
+                <button class="btn-primary mt-2" id="fa-empty-add">Add Account</button>
+              </div>
+            </div>`}
+        </div>
+
+        <!-- Monthly Cost Breakdown sidebar -->
+        <div class="funded-cost-panel">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Monthly Spend</span>
+              <span class="fa-sum-label" style="font-size:0.72rem;color:var(--text-muted)">Total: ${formatCurrency(totalSpent)}</span>
+            </div>
+            ${monthlyGroups.length ? `
+              <div class="monthly-totals">
+                ${monthlyGroups.map(([month, d]) => `
+                  <div class="monthly-row ${month === thisMonthKey ? 'monthly-current' : ''}">
+                    <div class="monthly-left">
+                      <span class="monthly-label">${formatMonthLabel(month)}</span>
+                      <span class="monthly-count">${d.count} account${d.count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <span class="monthly-pnl pnl-negative">${formatCurrency(d.total)}</span>
+                  </div>`).join('')}
+              </div>` : `
+              <div class="empty-state small">
+                <i class="fa-solid fa-receipt"></i>
+                <p>No purchase prices added yet</p>
+                <p class="empty-sub">Add a purchase price when creating accounts</p>
+              </div>`}
           </div>
-        </div>`
-      }
+        </div>
+      </div>
     </div>
 
     <!-- Modal -->
@@ -99,15 +169,13 @@ function mount(container, accounts) {
       <div class="modal" id="fa-modal-inner"></div>
     </div>`;
 
+  // Listeners
   document.getElementById('fa-add-btn')?.addEventListener('click', () => openFAModal(null, container));
   document.getElementById('fa-empty-add')?.addEventListener('click', () => openFAModal(null, container));
 
   container.querySelectorAll('.fa-edit-btn').forEach(btn => {
-    const id = btn.dataset.id;
-    btn.addEventListener('click', () => {
-      const acc = accounts.find(a => a.id === id);
-      if (acc) openFAModal(acc, container);
-    });
+    const acc = accounts.find(a => a.id === btn.dataset.id);
+    btn.addEventListener('click', () => { if (acc) openFAModal(acc, container); });
   });
 
   container.querySelectorAll('.fa-delete-btn').forEach(btn => {
@@ -123,24 +191,23 @@ function mount(container, accounts) {
 
   container.querySelectorAll('.fa-status-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      const newStatus = btn.dataset.status;
       try {
-        await saveFunded({ status: newStatus }, id);
-        showToast(`Status updated to ${newStatus}`, 'success');
+        await saveFunded({ status: btn.dataset.status }, btn.dataset.id);
+        showToast(`Status → ${btn.dataset.status}`, 'success');
         renderFunded(container);
       } catch (e) { showToast(e.message, 'error'); }
     });
   });
 }
 
+// ─── Account card ─────────────────────────────────────────────
 function accountCard(a) {
   const statusConfig = {
-    active:   { cls: 'status-active',   icon: 'fa-circle-check',     label: 'Active' },
-    breached: { cls: 'status-breached', icon: 'fa-circle-xmark',     label: 'Breached' },
-    passed:   { cls: 'status-passed',   icon: 'fa-trophy',            label: 'Passed' },
-    expired:  { cls: 'status-expired',  icon: 'fa-clock',             label: 'Expired' },
-    inactive: { cls: 'status-inactive', icon: 'fa-circle-minus',      label: 'Inactive' },
+    active:   { cls: 'status-active',   icon: 'fa-circle-check',  label: 'Active' },
+    breached: { cls: 'status-breached', icon: 'fa-circle-xmark',  label: 'Breached' },
+    passed:   { cls: 'status-passed',   icon: 'fa-trophy',         label: 'Passed' },
+    expired:  { cls: 'status-expired',  icon: 'fa-clock',          label: 'Expired' },
+    inactive: { cls: 'status-inactive', icon: 'fa-circle-minus',   label: 'Inactive' },
   };
   const s = statusConfig[a.status] || statusConfig.inactive;
 
@@ -163,20 +230,29 @@ function accountCard(a) {
       </div>
 
       <div class="fa-size">${formatCurrency(a.account_size)} <span class="fa-currency">${a.currency || 'USD'}</span></div>
+
       <div class="fa-type-row">
         <span class="fa-type-badge">${a.account_type}</span>
         ${a.login_id ? `<span class="fa-login">ID: ${a.login_id}</span>` : ''}
       </div>
 
+      <!-- Purchase price badge -->
+      ${a.purchase_price ? `
+        <div class="fa-purchase-row">
+          <i class="fa-solid fa-tag"></i>
+          <span>Purchased: <strong>${formatCurrency(a.purchase_price)}</strong></span>
+          ${a.start_date ? `<span class="fa-purchase-date">${formatDate(a.start_date)}</span>` : ''}
+        </div>` : ''}
+
       <div class="fa-metrics">
-        ${a.profit_target ? `<div class="fa-metric"><span class="fa-metric-label">Target</span><span class="fa-metric-val pnl-positive">+${a.profit_target}%</span></div>` : ''}
-        ${a.max_drawdown ? `<div class="fa-metric"><span class="fa-metric-label">Max DD</span><span class="fa-metric-val pnl-negative">-${a.max_drawdown}%</span></div>` : ''}
-        ${a.daily_loss_limit ? `<div class="fa-metric"><span class="fa-metric-label">Daily Loss</span><span class="fa-metric-val pnl-negative">-${a.daily_loss_limit}%</span></div>` : ''}
+        ${a.profit_target   ? `<div class="fa-metric"><span class="fa-metric-label">Target</span><span class="fa-metric-val pnl-positive">+${a.profit_target}%</span></div>` : ''}
+        ${a.max_drawdown    ? `<div class="fa-metric"><span class="fa-metric-label">Max DD</span><span class="fa-metric-val pnl-negative">-${a.max_drawdown}%</span></div>` : ''}
+        ${a.daily_loss_limit? `<div class="fa-metric"><span class="fa-metric-label">Daily Loss</span><span class="fa-metric-val pnl-negative">-${a.daily_loss_limit}%</span></div>` : ''}
       </div>
 
       <div class="fa-dates">
         ${a.start_date ? `<span><i class="fa-solid fa-play"></i> ${formatDate(a.start_date)}</span>` : ''}
-        ${a.end_date ? `<span><i class="fa-solid fa-flag-checkered"></i> ${formatDate(a.end_date)}</span>` : ''}
+        ${a.end_date   ? `<span><i class="fa-solid fa-flag-checkered"></i> ${formatDate(a.end_date)}</span>` : ''}
       </div>
 
       ${a.notes ? `<p class="fa-notes">${a.notes}</p>` : ''}
@@ -202,8 +278,8 @@ function openFAModal(acc, container) {
   const overlay = document.getElementById('fa-modal');
   const inner = document.getElementById('fa-modal-inner');
   if (!overlay || !inner) return;
-
   const d = acc || {};
+
   inner.innerHTML = `
     <div class="modal-header">
       <h2 class="modal-title">${acc ? 'Edit' : 'Add'} Funded Account</h2>
@@ -213,13 +289,13 @@ function openFAModal(acc, container) {
       <div class="form-grid">
         <div class="form-group">
           <label>Company / Prop Firm <span class="required">*</span></label>
-          <input type="text" id="fa-company" value="${d.company||''}" placeholder="e.g. FTMO, MyForexFunds, Topstep" required />
+          <input type="text" id="fa-company" value="${d.company||''}" placeholder="e.g. FTMO, Topstep, MyForexFunds" required />
         </div>
         <div class="form-group">
           <label>Account Type <span class="required">*</span></label>
           <select id="fa-account-type" required>
             <option value="">Select...</option>
-            ${['Challenge','Evaluation','Funded','Express','Instant Funding','Swing'].map(t =>
+            ${['Challenge','Evaluation','Funded','Express','Instant Funding','Swing','Step 1','Step 2'].map(t =>
               `<option value="${t}" ${d.account_type===t?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
@@ -236,9 +312,14 @@ function openFAModal(acc, container) {
           <input type="number" id="fa-size" value="${d.account_size||''}" placeholder="100000" required step="any" />
         </div>
         <div class="form-group">
+          <label>Purchase Price ($)</label>
+          <input type="number" id="fa-purchase-price" value="${d.purchase_price||''}" placeholder="e.g. 149" step="any" />
+        </div>
+        <div class="form-group">
           <label>Currency</label>
           <select id="fa-currency">
-            ${['USD','EUR','GBP','USDT'].map(c => `<option value="${c}" ${(d.currency||'USD')===c?'selected':''}>${c}</option>`).join('')}
+            ${['USD','EUR','GBP','USDT'].map(c =>
+              `<option value="${c}" ${(d.currency||'USD')===c?'selected':''}>${c}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -306,6 +387,7 @@ function openFAModal(acc, container) {
       account_type:     document.getElementById('fa-account-type').value,
       asset_type:       document.getElementById('fa-asset-type').value,
       account_size:     parseFloat(document.getElementById('fa-size').value) || null,
+      purchase_price:   parseFloat(document.getElementById('fa-purchase-price').value) || null,
       currency:         document.getElementById('fa-currency').value,
       status:           document.getElementById('fa-status').value,
       start_date:       document.getElementById('fa-start').value || null,

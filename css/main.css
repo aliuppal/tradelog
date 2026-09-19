@@ -469,10 +469,8 @@ textarea { resize: vertical; min-height: 80px; }
   font-size: 1.2rem;
   font-weight: 800;
 }
-.auth-logo i {
-  color: var(--accent);
-  font-size: 1.4rem;
-}
+.auth-logo svg { flex-shrink: 0; }
+.auth-logo i { color: var(--accent); font-size: 1.4rem; }
 
 .auth-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
 .auth-sub { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 24px; }

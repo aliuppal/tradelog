@@ -13,5 +13,7 @@ export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storage: window.localStorage,        // explicitly persist in localStorage across tabs/closes
+    storageKey: 'tradelog-auth-token',   // named key so it doesn't clash with other apps
   },
 });

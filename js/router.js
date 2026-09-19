@@ -3,13 +3,17 @@ import { renderCalendar } from './pages/calendar.js';
 import { renderTrades } from './pages/trades.js';
 import { renderStats } from './pages/stats.js';
 import { renderJournal } from './pages/journal.js';
+import { renderFunded } from './pages/funded.js';
+import { renderLive } from './pages/live.js';
 
 const pages = {
-  dashboard: { title: 'Dashboard', render: renderDashboard },
-  calendar:  { title: 'PNL Calendar', render: renderCalendar },
-  trades:    { title: 'Trade Log', render: renderTrades },
-  stats:     { title: 'Statistics', render: renderStats },
-  journal:   { title: 'Journal Notes', render: renderJournal },
+  dashboard: { title: 'Dashboard',        render: renderDashboard },
+  calendar:  { title: 'PNL Calendar',     render: renderCalendar },
+  trades:    { title: 'Trade Log',         render: renderTrades },
+  stats:     { title: 'Statistics',        render: renderStats },
+  journal:   { title: 'Journal Notes',     render: renderJournal },
+  funded:    { title: 'Funded Accounts',   render: renderFunded },
+  live:      { title: 'Live Accounts',     render: renderLive },
 };
 
 let currentPage = 'dashboard';

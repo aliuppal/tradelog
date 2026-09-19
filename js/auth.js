@@ -26,21 +26,67 @@ export async function initAuth() {
   renderAuthGate(!currentUser);
   if (currentUser) {
     populateUserUI(currentUser);
-    if (window.location.hash.includes('access_token')) {
-      history.replaceState(null, '', window.location.pathname);
-    }
+    cleanHash();
   }
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    const prevUser = currentUser;
     currentUser = session?.user ?? null;
     renderAuthGate(!currentUser);
+
     if (currentUser) {
       populateUserUI(currentUser);
-      if (window.location.hash.includes('access_token')) {
-        history.replaceState(null, '', window.location.pathname);
+      cleanHash();
+
+      // Only write profile + session log on a fresh sign-in, not on every token refresh
+      if (event === 'SIGNED_IN' && prevUser?.id !== currentUser.id) {
+        upsertProfile(currentUser);
+        writeSessionLog(currentUser);
       }
     }
   });
+}
+
+function cleanHash() {
+  if (window.location.hash.includes('access_token')) {
+    history.replaceState(null, '', window.location.pathname);
+  }
+}
+
+// ─── Upsert user profile row ─────────────────────────────────
+// Keeps name / avatar fresh each sign-in (Google users update their photo etc.)
+async function upsertProfile(user) {
+  try {
+    const meta = user.user_metadata || {};
+    const provider = user.app_metadata?.provider || 'email';
+    await supabase.from('user_profiles').upsert({
+      id:         user.id,
+      email:      user.email,
+      full_name:  meta.full_name || meta.name || user.email?.split('@')[0],
+      avatar_url: meta.avatar_url || null,
+      provider,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+  } catch (err) {
+    // Non-fatal — profile table may not exist yet
+    console.warn('upsertProfile:', err.message);
+  }
+}
+
+// ─── Write session log row ────────────────────────────────────
+async function writeSessionLog(user) {
+  try {
+    const provider = user.app_metadata?.provider || 'email';
+    await supabase.from('session_logs').insert({
+      user_id:      user.id,
+      provider,
+      user_agent:   navigator.userAgent,
+      signed_in_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    // Non-fatal — session_logs table may not exist yet
+    console.warn('writeSessionLog:', err.message);
+  }
 }
 
 // ─── Show / hide auth gate vs app ───────────────────────────

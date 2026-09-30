@@ -1,11 +1,23 @@
 import { fetchAllTrades, computeStats, aggregateByDate } from '../db.js';
 import { formatCurrency, formatPct, pnlClass } from '../utils.js';
 import { openTradeModal } from '../modal.js';
+import { supabase } from '../config.js';
+import { getUser } from '../auth.js';
+
+// Purchase prices of funded accounts (prop firm challenge fees)
+async function fetchFundedSpend() {
+  const user = getUser();
+  if (!user) return { total: 0, count: 0 };
+  const { data, error } = await supabase.from('funded_accounts').select('purchase_price').eq('user_id', user.id);
+  if (error) { console.error(error); return { total: 0, count: 0 }; }
+  const paid = (data || []).filter(a => a.purchase_price);
+  return { total: paid.reduce((s, a) => s + parseFloat(a.purchase_price), 0), count: paid.length };
+}
 
 export async function renderDashboard(container) {
   container.innerHTML = `<div class="page-loading"><span class="spinner"></span></div>`;
 
-  const trades = await fetchAllTrades();
+  const [trades, spend] = await Promise.all([fetchAllTrades(), fetchFundedSpend()]);
   const stats = computeStats(trades);
   const now = new Date();
   const thisMonth = trades.filter(t => t.trade_date?.startsWith(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`));
@@ -36,6 +48,7 @@ export async function renderDashboard(container) {
         ${kpiCard('Avg Win', formatCurrency(stats?.avgWin || 0), 1, 'fa-arrow-trend-up', 'Per winning trade')}
         ${kpiCard('Avg Loss', formatCurrency(stats?.avgLoss || 0), -1, 'fa-arrow-trend-down', 'Per losing trade', false)}
         ${kpiCard('Max Drawdown', formatCurrency(-(stats?.maxDrawdown || 0)), -1, 'fa-chart-area', 'Peak to trough')}
+        ${kpiCard('Total Spent', formatCurrency(spend.total), spend.total ? -1 : 0, 'fa-tag', `${spend.count} funded account${spend.count !== 1 ? 's' : ''}`)}
       </div>
 
       <!-- Equity Chart + Recent Trades -->

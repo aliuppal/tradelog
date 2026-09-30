@@ -1,6 +1,6 @@
 import { supabase } from '../config.js';
 import { getUser } from '../auth.js';
-import { showToast, formatCurrency, formatDate, toLocalDateStr, pnlClass } from '../utils.js';
+import { showToast, formatCurrency, formatDate, toLocalDateStr, pnlClass, toMonthKey, formatMonthLabel, monthNavHTML, bindMonthNav } from '../utils.js';
 
 const BROKERS = ['Exness', 'MEXC', 'Binance', 'Bybit', 'Other'];
 const BROKER_COLORS = {
@@ -75,6 +75,8 @@ function groupByMonth(logs) {
 
 // ─── Page render ──────────────────────────────────────────────
 let selectedAccountId = null;
+// Month being viewed: 'YYYY-MM' or 'all'. Resets to the current month on each app load.
+let selectedMonth = toMonthKey();
 
 export async function renderLive(container) {
   container.innerHTML = `<div class="page-loading"><span class="spinner"></span></div>`;
@@ -83,15 +85,17 @@ export async function renderLive(container) {
 }
 
 function mountLive(container, accounts, logs) {
-  // Total across all accounts this month
-  const now = new Date();
-  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const monthLogs = logs.filter(l => l.log_date?.startsWith(thisMonthKey));
+  const isAll = selectedMonth === 'all';
+  const monthLabel = isAll ? '' : formatMonthLabel(selectedMonth);
+
+  // Total across all accounts for the selected month
+  const monthLogs = isAll ? logs : logs.filter(l => l.log_date?.startsWith(selectedMonth));
   const monthTotal = monthLogs.reduce((s, l) => s + (parseFloat(l.pnl) || 0), 0);
   const allTimeTotal = logs.reduce((s, l) => s + (parseFloat(l.pnl) || 0), 0);
 
-  const filteredLogs = selectedAccountId ? logs.filter(l => l.account_id === selectedAccountId) : logs;
-  const monthlyGroups = groupByMonth(filteredLogs);
+  const accountLogs = selectedAccountId ? logs.filter(l => l.account_id === selectedAccountId) : logs;
+  const filteredLogs = isAll ? accountLogs : accountLogs.filter(l => l.log_date?.startsWith(selectedMonth));
+  const monthlyGroups = groupByMonth(accountLogs);
 
   container.innerHTML = `
     <div class="page live-page">
@@ -103,23 +107,26 @@ function mountLive(container, accounts, logs) {
         <button class="btn-primary" id="la-add-btn"><i class="fa-solid fa-plus"></i> Add Account</button>
       </div>
 
+      ${monthNavHTML('la', selectedMonth)}
+
       <!-- Summary -->
       <div class="fa-summary">
         <div class="card fa-sum-card">
           <span class="fa-sum-label">Accounts</span>
           <span class="fa-sum-val">${accounts.length}</span>
         </div>
+        ${!isAll ? `
         <div class="card fa-sum-card">
-          <span class="fa-sum-label">Month P&L</span>
+          <span class="fa-sum-label">${monthLabel} P&L</span>
           <span class="fa-sum-val ${pnlClass(monthTotal)}">${formatCurrency(monthTotal, true)}</span>
-        </div>
+        </div>` : ''}
         <div class="card fa-sum-card">
           <span class="fa-sum-label">All-Time P&L</span>
           <span class="fa-sum-val ${pnlClass(allTimeTotal)}">${formatCurrency(allTimeTotal, true)}</span>
         </div>
         <div class="card fa-sum-card">
-          <span class="fa-sum-label">Total Log Entries</span>
-          <span class="fa-sum-val">${logs.length}</span>
+          <span class="fa-sum-label">${isAll ? 'Total Log Entries' : 'Log Entries'}</span>
+          <span class="fa-sum-val">${monthLogs.length}</span>
         </div>
       </div>
 
@@ -142,7 +149,7 @@ function mountLive(container, accounts, logs) {
               <span class="card-title">
                 ${selectedAccountId
                   ? `Logs — ${accounts.find(a => a.id === selectedAccountId)?.account_name || 'Account'}`
-                  : 'All Logs'}
+                  : 'All Logs'}${isAll ? '' : ` · ${monthLabel}`}
               </span>
               <div style="display:flex;gap:8px;align-items:center">
                 ${selectedAccountId ? `<button class="btn-secondary btn-sm" id="la-clear-filter"><i class="fa-solid fa-xmark"></i> Clear filter</button>` : ''}
@@ -152,7 +159,7 @@ function mountLive(container, accounts, logs) {
               </div>
             </div>
             ${filteredLogs.length ? logsTableHTML(filteredLogs) :
-              `<div class="empty-state small"><i class="fa-solid fa-receipt"></i><p>No logs yet</p></div>`}
+              `<div class="empty-state small"><i class="fa-solid fa-receipt"></i><p>${isAll ? 'No logs yet' : `No logs in ${monthLabel}`}</p></div>`}
           </div>
 
           <!-- Monthly totals -->
@@ -161,7 +168,7 @@ function mountLive(container, accounts, logs) {
               <div class="card-header"><span class="card-title">Monthly P&L Totals</span></div>
               <div class="monthly-totals">
                 ${monthlyGroups.map(([month, d]) => `
-                  <div class="monthly-row">
+                  <div class="monthly-row monthly-selectable ${month === selectedMonth ? 'monthly-current' : ''}" data-month="${month}" title="View ${formatMonthLabel(month)}">
                     <span class="monthly-label">${formatMonthLabel(month)}</span>
                     <span class="monthly-count">${d.count} log${d.count !== 1 ? 's' : ''}</span>
                     <span class="monthly-pnl ${pnlClass(d.pnl)}">${formatCurrency(d.pnl, true)}</span>
@@ -180,6 +187,13 @@ function mountLive(container, accounts, logs) {
     <div id="la-log-modal" class="modal-overlay hidden">
       <div class="modal" style="max-width:480px" id="la-log-modal-inner"></div>
     </div>`;
+
+  // Month selection
+  const selectMonth = (m) => { selectedMonth = m; mountLive(container, accounts, logs); };
+  bindMonthNav('la', selectedMonth, selectMonth);
+  container.querySelectorAll('.monthly-selectable').forEach(row => {
+    row.addEventListener('click', () => selectMonth(row.dataset.month));
+  });
 
   // Account actions
   document.getElementById('la-add-btn')?.addEventListener('click', () => openAccountModal(null, container, accounts));
@@ -268,11 +282,6 @@ function logsTableHTML(logs) {
         </tbody>
       </table>
     </div>`;
-}
-
-function formatMonthLabel(key) {
-  const [y, m] = key.split('-');
-  return new Date(+y, +m - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
 // ─── Account modal ────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { supabase } from './config.js';
 import { getUser } from './auth.js';
+import { toLocalDateStr } from './utils.js';
 
 // ─── Trades ──────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ export async function fetchTrades({ year, month } = {}) {
 
   if (year && month !== undefined) {
     const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const to = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    const to = toLocalDateStr(new Date(year, month + 1, 0));
     query = query.gte('trade_date', from).lte('trade_date', to);
   }
 

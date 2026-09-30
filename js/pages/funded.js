@@ -1,6 +1,6 @@
 import { supabase } from '../config.js';
 import { getUser } from '../auth.js';
-import { showToast, formatCurrency, formatDate, toLocalDateStr } from '../utils.js';
+import { showToast, formatCurrency, formatDate, toMonthKey, formatMonthLabel, monthNavHTML, bindMonthNav } from '../utils.js';
 
 // ─── DB helpers ───────────────────────────────────────────────
 async function fetchFunded() {
@@ -36,15 +36,20 @@ async function deleteFunded(id) {
 }
 
 // ─── Monthly cost aggregation ─────────────────────────────────
-// Groups accounts by the month of start_date, sums purchase_price
+// Purchase month: start_date month; fall back to created_at (converted to local time)
+function purchaseMonth(a) {
+  if (a.start_date) return a.start_date.slice(0, 7);
+  if (a.created_at) return toMonthKey(new Date(a.created_at));
+  return null;
+}
+
+// Groups accounts by purchase month, sums purchase_price
 function groupByPurchaseMonth(accounts) {
   const map = {};
   for (const a of accounts) {
     if (!a.purchase_price) continue;
-    // Use start_date month; fall back to created_at month
-    const rawDate = a.start_date || a.created_at?.slice(0, 10);
-    if (!rawDate) continue;
-    const key = rawDate.slice(0, 7); // YYYY-MM
+    const key = purchaseMonth(a); // YYYY-MM
+    if (!key) continue;
     if (!map[key]) map[key] = { total: 0, count: 0, accounts: [] };
     map[key].total += parseFloat(a.purchase_price);
     map[key].count++;
@@ -53,12 +58,10 @@ function groupByPurchaseMonth(accounts) {
   return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
 }
 
-function formatMonthLabel(key) {
-  const [y, m] = key.split('-');
-  return new Date(+y, +m - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-}
-
 // ─── Page render ──────────────────────────────────────────────
+// Month being viewed: 'YYYY-MM' or 'all'. Resets to the current month on each app load.
+let selectedMonth = toMonthKey();
+
 export async function renderFunded(container) {
   container.innerHTML = `<div class="page-loading"><span class="spinner"></span></div>`;
   const accounts = await fetchFunded();
@@ -66,18 +69,19 @@ export async function renderFunded(container) {
 }
 
 function mount(container, accounts) {
-  const active    = accounts.filter(a => a.status === 'active').length;
-  const breached  = accounts.filter(a => a.status === 'breached').length;
-  const totalCapital = accounts.filter(a => a.status === 'active')
+  const isAll = selectedMonth === 'all';
+  const monthLabel = isAll ? '' : formatMonthLabel(selectedMonth);
+  const visible = isAll ? accounts : accounts.filter(a => purchaseMonth(a) === selectedMonth);
+
+  const active    = visible.filter(a => a.status === 'active').length;
+  const breached  = visible.filter(a => a.status === 'breached').length;
+  const totalCapital = visible.filter(a => a.status === 'active')
     .reduce((s, a) => s + parseFloat(a.account_size || 0), 0);
+  const visibleSpent = visible.reduce((s, a) => s + parseFloat(a.purchase_price || 0), 0);
   const totalSpent = accounts.reduce((s, a) => s + parseFloat(a.purchase_price || 0), 0);
 
-  // Monthly cost data
+  // Monthly cost data (always all-time; rows select a month)
   const monthlyGroups = groupByPurchaseMonth(accounts);
-
-  // Current month cost
-  const thisMonthKey = new Date().toISOString().slice(0, 7);
-  const thisMonthCost = monthlyGroups.find(([k]) => k === thisMonthKey)?.[1]?.total || 0;
 
   container.innerHTML = `
     <div class="page funded-page">
@@ -91,11 +95,13 @@ function mount(container, accounts) {
         </button>
       </div>
 
+      ${monthNavHTML('fa', selectedMonth)}
+
       <!-- KPI Summary -->
       <div class="fa-summary">
         <div class="card fa-sum-card">
-          <span class="fa-sum-label">Total Accounts</span>
-          <span class="fa-sum-val">${accounts.length}</span>
+          <span class="fa-sum-label">${isAll ? 'Total Accounts' : 'Accounts'}</span>
+          <span class="fa-sum-val">${visible.length}</span>
         </div>
         <div class="card fa-sum-card">
           <span class="fa-sum-label">Active</span>
@@ -110,21 +116,25 @@ function mount(container, accounts) {
           <span class="fa-sum-val">${formatCurrency(totalCapital)}</span>
         </div>
         <div class="card fa-sum-card">
-          <span class="fa-sum-label">Total Spent</span>
-          <span class="fa-sum-val pnl-negative">${formatCurrency(totalSpent)}</span>
-        </div>
-        <div class="card fa-sum-card">
-          <span class="fa-sum-label">This Month Cost</span>
-          <span class="fa-sum-val pnl-negative">${formatCurrency(thisMonthCost)}</span>
+          <span class="fa-sum-label">${isAll ? 'Total Spent' : `${monthLabel} Cost`}</span>
+          <span class="fa-sum-val pnl-negative">${formatCurrency(visibleSpent)}</span>
         </div>
       </div>
 
       <div class="funded-layout">
         <!-- Accounts Grid -->
         <div class="funded-main">
-          ${accounts.length ? `
+          ${visible.length ? `
             <div class="fa-grid" id="fa-grid">
-              ${accounts.map(accountCard).join('')}
+              ${visible.map(accountCard).join('')}
+            </div>` : accounts.length ? `
+            <div class="card">
+              <div class="empty-state">
+                <i class="fa-solid fa-calendar-xmark"></i>
+                <p>No accounts purchased in ${monthLabel}</p>
+                <p class="empty-sub">You have ${accounts.length} account${accounts.length !== 1 ? 's' : ''} in other months</p>
+                <button class="btn-secondary mt-2" id="fa-empty-all">View all time</button>
+              </div>
             </div>` : `
             <div class="card">
               <div class="empty-state">
@@ -146,7 +156,7 @@ function mount(container, accounts) {
             ${monthlyGroups.length ? `
               <div class="monthly-totals">
                 ${monthlyGroups.map(([month, d]) => `
-                  <div class="monthly-row ${month === thisMonthKey ? 'monthly-current' : ''}">
+                  <div class="monthly-row monthly-selectable ${month === selectedMonth ? 'monthly-current' : ''}" data-month="${month}" title="View ${formatMonthLabel(month)}">
                     <div class="monthly-left">
                       <span class="monthly-label">${formatMonthLabel(month)}</span>
                       <span class="monthly-count">${d.count} account${d.count !== 1 ? 's' : ''}</span>
@@ -170,6 +180,13 @@ function mount(container, accounts) {
     </div>`;
 
   // Listeners
+  const selectMonth = (m) => { selectedMonth = m; mount(container, accounts); };
+  bindMonthNav('fa', selectedMonth, selectMonth);
+  document.getElementById('fa-empty-all')?.addEventListener('click', () => selectMonth('all'));
+  container.querySelectorAll('.monthly-selectable').forEach(row => {
+    row.addEventListener('click', () => selectMonth(row.dataset.month));
+  });
+
   document.getElementById('fa-add-btn')?.addEventListener('click', () => openFAModal(null, container));
   document.getElementById('fa-empty-add')?.addEventListener('click', () => openFAModal(null, container));
 

@@ -1,5 +1,5 @@
 import { fetchTrades, aggregateByDate } from '../db.js';
-import { formatCurrency, pnlClass } from '../utils.js';
+import { formatCurrency, pnlClass, toLocalDateStr } from '../utils.js';
 import { openTradeModal } from '../modal.js';
 
 let calYear = new Date().getFullYear();
@@ -163,7 +163,7 @@ function buildWeekRows(year, month, byDate) {
 function buildCalendarCells(year, month, byDate) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   let html = '';
 
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-cell empty"></div>`;

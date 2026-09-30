@@ -1317,3 +1317,17 @@ textarea { resize: vertical; min-height: 80px; }
   .cal-summary { flex-direction: column; }
   .stats-overview { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Month selector (Funded / Live) ──────────────────────────── */
+.month-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.month-nav-label { font-size: 1.05rem; font-weight: 700; min-width: 150px; text-align: center; }
+.month-nav .btn-icon:disabled { opacity: 0.35; cursor: default; }
+.monthly-selectable { cursor: pointer; }
+.monthly-selectable:hover { background: var(--bg-surface); border-radius: var(--radius-sm); }
+.monthly-selectable.monthly-current:hover { background: var(--accent-dim); }

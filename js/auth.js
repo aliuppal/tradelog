@@ -1,17 +1,11 @@
 import { supabase } from './config.js';
 import { showToast } from './utils.js';
 
-// Inline candlestick SVG logo used across all auth screens
-const LOGO_SVG = `<svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <line x1="4" y1="2" x2="4" y2="5" stroke="#26a69a" stroke-width="1.5" stroke-linecap="round"/>
-  <rect x="2.5" y="5" width="3" height="5" rx="0.5" fill="#26a69a"/>
-  <line x1="4" y1="10" x2="4" y2="13" stroke="#26a69a" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="10" y1="4" x2="10" y2="7" stroke="#ef5350" stroke-width="1.5" stroke-linecap="round"/>
-  <rect x="8.5" y="7" width="3" height="6" rx="0.5" fill="#ef5350"/>
-  <line x1="10" y1="13" x2="10" y2="16" stroke="#ef5350" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="16" y1="3" x2="16" y2="6" stroke="#26a69a" stroke-width="1.5" stroke-linecap="round"/>
-  <rect x="14.5" y="6" width="3" height="4" rx="0.5" fill="#26a69a"/>
-  <line x1="16" y1="10" x2="16" y2="14" stroke="#26a69a" stroke-width="1.5" stroke-linecap="round"/>
+// Inline monochrome TradeLog mark used across all auth screens
+const LOGO_SVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect x="1.5" y="1.5" width="21" height="21" stroke="currentColor" stroke-width="1"/>
+  <path d="M5.5 16.5 L10 11.5 L13 14.5 L18.5 8" stroke="currentColor" stroke-width="1.25" stroke-linecap="square"/>
+  <circle cx="18.5" cy="8" r="1.4" fill="currentColor"/>
 </svg>`;
 
 // ─── Auth State ─────────────────────────────────────────────
@@ -128,7 +122,7 @@ function loginHTML() {
   return `
   <div class="auth-bg">
     <div class="auth-card">
-      <div class="auth-logo">${LOGO_SVG}<span>TradeLog</span></div>
+      <div class="auth-logo">${LOGO_SVG}<span>TRADELOG</span></div>
       <h2 class="auth-title">Welcome back</h2>
       <p class="auth-sub">Sign in to your trading journal</p>
       ${googleBtn}
@@ -163,7 +157,7 @@ function signupHTML() {
   return `
   <div class="auth-bg">
     <div class="auth-card">
-      <div class="auth-logo">${LOGO_SVG}<span>TradeLog</span></div>
+      <div class="auth-logo">${LOGO_SVG}<span>TRADELOG</span></div>
       <h2 class="auth-title">Create account</h2>
       <p class="auth-sub">Start tracking your trades today</p>
       ${googleBtn}
@@ -202,7 +196,7 @@ function forgotHTML() {
   return `
   <div class="auth-bg">
     <div class="auth-card">
-      <div class="auth-logo">${LOGO_SVG}<span>TradeLog</span></div>
+      <div class="auth-logo">${LOGO_SVG}<span>TRADELOG</span></div>
       <h2 class="auth-title">Reset password</h2>
       <p class="auth-sub">We'll send a reset link to your email</p>
       <form id="auth-form">

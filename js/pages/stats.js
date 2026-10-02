@@ -120,14 +120,14 @@ function renderEquityChart(equity) {
   const canvas = document.getElementById('stats-equity');
   if (!canvas) return;
   const lastVal = equity[equity.length - 1]?.equity || 0;
-  const color = lastVal >= 0 ? '#26a69a' : '#ef5350';
+  const color = lastVal >= 0 ? '#5fa657' : '#c8524d';
   new Chart(canvas, {
     type: 'line',
     data: {
       labels: equity.map(e => e.date),
       datasets: [{ data: equity.map(e => e.equity), borderColor: color, backgroundColor: color + '18', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0 }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888', maxTicksLimit: 6 }, grid: { color: '#ffffff08' } }, y: { ticks: { color: '#888', callback: v => '$' + v }, grid: { color: '#ffffff08' } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#999999', maxTicksLimit: 6 }, grid: { color: '#262626' } }, y: { ticks: { color: '#999999', callback: v => '$' + v }, grid: { color: '#262626' } } } }
   });
 }
 
@@ -135,11 +135,11 @@ function renderDowChart(byDow, labels) {
   const canvas = document.getElementById('stats-dow');
   if (!canvas) return;
   const data = byDow.map(d => d.pnl);
-  const colors = data.map(v => v >= 0 ? '#26a69a' : '#ef5350');
+  const colors = data.map(v => v >= 0 ? '#5fa657' : '#c8524d');
   new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '$' + v }, grid: { color: '#ffffff08' } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#999999' }, grid: { display: false } }, y: { ticks: { color: '#999999', callback: v => '$' + v }, grid: { color: '#262626' } } } }
   });
 }
 
@@ -149,11 +149,11 @@ function renderSymbolChart(bySymbol) {
   const sorted = Object.entries(bySymbol).sort((a, b) => b[1].pnl - a[1].pnl);
   const labels = sorted.map(([k]) => k);
   const data = sorted.map(([, v]) => v.pnl);
-  const colors = data.map(v => v >= 0 ? '#26a69a' : '#ef5350');
+  const colors = data.map(v => v >= 0 ? '#5fa657' : '#c8524d');
   new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '$' + v }, grid: { color: '#ffffff08' } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#999999' }, grid: { display: false } }, y: { ticks: { color: '#999999', callback: v => '$' + v }, grid: { color: '#262626' } } } }
   });
 }
 
@@ -163,10 +163,10 @@ function renderSetupChart(bySetup) {
   const sorted = Object.entries(bySetup).sort((a, b) => b[1].pnl - a[1].pnl);
   const labels = sorted.map(([k]) => k);
   const data = sorted.map(([, v]) => v.pnl);
-  const colors = data.map(v => v >= 0 ? '#26a69a' : '#ef5350');
+  const colors = data.map(v => v >= 0 ? '#5fa657' : '#c8524d');
   new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '$' + v }, grid: { color: '#ffffff08' } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#999999' }, grid: { display: false } }, y: { ticks: { color: '#999999', callback: v => '$' + v }, grid: { color: '#262626' } } } }
   });
 }

@@ -3,6 +3,12 @@ import { showToast, toLocalDateStr } from './utils.js';
 
 let onSaveCallback = null;
 
+const OUTCOMES = [
+  { key: 'TP', name: 'Take Profit' },
+  { key: 'SL', name: 'Stop Loss' },
+  { key: 'BE', name: 'Break Even' },
+];
+
 function handleOverlayClick(e) {
   if (e.target.id === 'trade-modal') closeModal();
 }
@@ -63,6 +69,18 @@ function tradeFormHTML(trade) {
         <div class="form-group">
           <label>Take Profit</label>
           <input type="number" id="take-profit" value="${d.take_profit || ''}" placeholder="0.00" step="any" />
+        </div>
+
+        <!-- Outcome -->
+        <div class="form-group form-full">
+          <label id="outcome-label">Outcome</label>
+          <div class="outcome-picker" id="trade-outcome" role="group" aria-labelledby="outcome-label" data-value="${d.outcome || ''}">
+            ${OUTCOMES.map(o => `
+              <button type="button" class="outcome-opt outcome-${o.key.toLowerCase()}" data-value="${o.key}" aria-pressed="${d.outcome === o.key}">
+                <span class="outcome-key">${o.key}</span>
+                <span class="outcome-name">${o.name}</span>
+              </button>`).join('')}
+          </div>
         </div>
 
         <!-- Row 3 -->
@@ -160,6 +178,7 @@ async function handleSubmit(e) {
   const take_profit = parseFloat(document.getElementById('take-profit')?.value) || null;
   const pnl = parseFloat(document.getElementById('trade-pnl')?.value) || calculatePnlValue();
   const rr = parseFloat(document.getElementById('trade-rr')?.value) || null;
+  const outcome = document.getElementById('trade-outcome')?.dataset.value || null;
   const setup = document.getElementById('trade-setup')?.value.trim() || null;
   const session = document.getElementById('trade-session')?.value || null;
   const grade = document.getElementById('trade-grade')?.value || null;
@@ -167,7 +186,7 @@ async function handleSubmit(e) {
   const screenshot_url = document.getElementById('trade-screenshot')?.value.trim() || null;
   const notes = document.getElementById('trade-notes')?.value.trim() || null;
 
-  const payload = { symbol, trade_date, side, quantity, entry_price, exit_price, stop_loss, take_profit, pnl, rr, setup, session, grade, emotion, screenshot_url, notes };
+  const payload = { symbol, trade_date, side, quantity, entry_price, exit_price, stop_loss, take_profit, pnl, rr, outcome, setup, session, grade, emotion, screenshot_url, notes };
 
   try {
     const existingId = document.getElementById('trade-form')?.dataset.id;
@@ -181,7 +200,8 @@ async function handleSubmit(e) {
     closeModal();
     if (onSaveCallback) onSaveCallback();
   } catch (err) {
-    showToast(err.message, 'error');
+    const missingOutcome = /outcome/i.test(err.message || '');
+    showToast(missingOutcome ? 'Outcome column missing — run supabase/migration_v4_outcome.sql' : err.message, 'error', missingOutcome ? 7000 : 3500);
   } finally {
     setModalLoading(false);
   }
@@ -210,6 +230,16 @@ export function openTradeModal(trade = null, onSave = null) {
   calcFields.forEach(id => {
     document.getElementById(id)?.addEventListener('input', () => { calculatePnl(); calculateRR(); });
     document.getElementById(id)?.addEventListener('change', () => { calculatePnl(); calculateRR(); });
+  });
+
+  // Outcome picker — click to select, click again to clear
+  const picker = document.getElementById('trade-outcome');
+  picker?.querySelectorAll('.outcome-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const next = picker.dataset.value === btn.dataset.value ? '' : btn.dataset.value;
+      picker.dataset.value = next;
+      picker.querySelectorAll('.outcome-opt').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === next));
+    });
   });
 
   // Uppercase symbol

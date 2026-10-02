@@ -24,6 +24,7 @@ create table if not exists public.trades (
 
   pnl            numeric(18, 2),
   rr             numeric(10, 4),
+  outcome        text check (outcome in ('TP','SL','BE') or outcome is null),
 
   setup          text,
   session        text,

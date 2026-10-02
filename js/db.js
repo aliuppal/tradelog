@@ -18,6 +18,8 @@ export async function fetchTrades({ year, month } = {}) {
     const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const to = toLocalDateStr(new Date(year, month + 1, 0));
     query = query.gte('trade_date', from).lte('trade_date', to);
+  } else if (year) {
+    query = query.gte('trade_date', `${year}-01-01`).lte('trade_date', `${year}-12-31`);
   }
 
   const { data, error } = await query;
@@ -125,6 +127,17 @@ export function aggregateByDate(trades) {
     else if ((parseFloat(t.pnl) || 0) < 0) map[d].losses++;
   }
   return map;
+}
+
+export function countOutcomes(trades) {
+  // Returns { TP, SL, BE, untagged, total, pnl }
+  const c = { TP: 0, SL: 0, BE: 0, untagged: 0, total: trades.length, pnl: 0 };
+  for (const t of trades) {
+    if (['TP', 'SL', 'BE'].includes(t.outcome)) c[t.outcome]++;
+    else c.untagged++;
+    c.pnl += parseFloat(t.pnl) || 0;
+  }
+  return c;
 }
 
 export function computeStats(trades) {

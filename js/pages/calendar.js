@@ -1,4 +1,4 @@
-import { fetchTrades, aggregateByDate } from '../db.js';
+import { fetchTrades, aggregateByDate, countOutcomes } from '../db.js';
 import { formatCurrency, pnlClass, toLocalDateStr } from '../utils.js';
 import { openTradeModal } from '../modal.js';
 
@@ -11,14 +11,20 @@ export async function renderCalendar(container) {
 }
 
 async function drawCalendar(container) {
-  const trades = await fetchTrades({ year: calYear, month: calMonth });
+  // One query for the whole year: feeds the month grid and the year-by-month outcome table
+  const yearTrades = await fetchTrades({ year: calYear });
+  const monthPrefix = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+  const trades = yearTrades.filter(t => t.trade_date?.startsWith(monthPrefix));
   const byDate = aggregateByDate(trades);
+  const monthOutcomes = countOutcomes(trades);
+  const yearRows = buildYearOutcomeRows(calYear, yearTrades);
 
   // Month totals
   const monthPnl = Object.values(byDate).reduce((a, d) => a + d.pnl, 0);
   const tradingDays = Object.keys(byDate).length;
   const winDays = Object.values(byDate).filter(d => d.pnl > 0).length;
   const lossDays = Object.values(byDate).filter(d => d.pnl < 0).length;
+  const beDays = tradingDays - winDays - lossDays;
 
   const monthName = new Date(calYear, calMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -56,6 +62,10 @@ async function drawCalendar(container) {
           <span class="cal-sum-val pnl-negative">${lossDays}</span>
         </div>
         <div class="cal-sum-item">
+          <span class="cal-sum-label">BE Days</span>
+          <span class="cal-sum-val">${beDays}</span>
+        </div>
+        <div class="cal-sum-item">
           <span class="cal-sum-label">Day Win Rate</span>
           <span class="cal-sum-val ${tradingDays ? pnlClass(winDays - lossDays) : ''}">${tradingDays ? ((winDays / tradingDays) * 100).toFixed(0) + '%' : '—'}</span>
         </div>
@@ -79,19 +89,62 @@ async function drawCalendar(container) {
             </div>
           </div>
 
-          <!-- Weekly PNL sidebar -->
-          <div class="cal-weekly">
-            <div class="weekly-header">Week P&L</div>
-            ${weekRows.map(w => `
-              <div class="weekly-row">
-                <span class="weekly-label">W${w.weekNum}</span>
-                <div class="weekly-bar-wrap">
-                  <div class="weekly-bar ${w.pnl >= 0 ? 'bar-win' : 'bar-loss'}"
-                       style="width:${w.barPct}%"></div>
-                </div>
-                <span class="weekly-pnl ${pnlClass(w.pnl)}">${w.pnl !== 0 ? formatCurrency(w.pnl, true) : '—'}</span>
-              </div>`).join('')}
+          <div class="cal-side">
+            <!-- Weekly PNL -->
+            <div class="cal-weekly">
+              <div class="weekly-header">Week P&L</div>
+              ${weekRows.map(w => `
+                <div class="weekly-row">
+                  <span class="weekly-label">W${w.weekNum}</span>
+                  <div class="weekly-bar-wrap">
+                    <div class="weekly-bar ${w.pnl >= 0 ? 'bar-win' : 'bar-loss'}"
+                         style="width:${w.barPct}%"></div>
+                  </div>
+                  <span class="weekly-pnl ${pnlClass(w.pnl)}">${w.pnl !== 0 ? formatCurrency(w.pnl, true) : '—'}</span>
+                </div>`).join('')}
+            </div>
+
+            <!-- Month outcomes: TP / SL / BE -->
+            ${outcomePanelHTML(monthOutcomes)}
           </div>
+        </div>
+      </div>
+
+      <!-- Year: outcomes month by month -->
+      <div class="card year-outcomes-card">
+        <div class="card-header">
+          <span class="card-title">${calYear} · Outcomes by Month</span>
+        </div>
+        <div class="table-wrap">
+          <table class="trades-table year-outcomes-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th class="num outcome-col-tp">TP</th>
+                <th class="num outcome-col-sl">SL</th>
+                <th class="num outcome-col-be">BE</th>
+                <th class="num">Win Days</th>
+                <th class="num">Loss Days</th>
+                <th class="num">BE Days</th>
+                <th class="num">TP Rate</th>
+                <th class="num">P&L</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${yearRows.map(r => `
+                <tr class="year-row ${r.month === calMonth ? 'year-row-current' : ''} ${r.total ? '' : 'year-row-empty'}" data-month="${r.month}" tabindex="0">
+                  <td>${r.label}</td>
+                  <td class="num mono">${r.total ? r.TP : '—'}</td>
+                  <td class="num mono">${r.total ? r.SL : '—'}</td>
+                  <td class="num mono">${r.total ? r.BE : '—'}</td>
+                  <td class="num mono pnl-positive">${r.total ? r.winDays : '—'}</td>
+                  <td class="num mono pnl-negative">${r.total ? r.lossDays : '—'}</td>
+                  <td class="num mono">${r.total ? r.beDays : '—'}</td>
+                  <td class="num mono">${tpRate(r)}</td>
+                  <td class="num mono ${pnlClass(r.pnl)}">${r.total ? formatCurrency(r.pnl, true) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -122,9 +175,57 @@ async function drawCalendar(container) {
     document.getElementById('day-detail')?.classList.add('hidden');
   });
 
+  // Year table: jump to a month
+  container.querySelectorAll('.year-row').forEach(row => {
+    const go = async () => { calMonth = +row.dataset.month; await drawCalendar(container); };
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  });
+
   // Cell clicks
   container.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
     cell.addEventListener('click', () => showDayDetail(cell.dataset.date, byDate[cell.dataset.date], trades));
+  });
+}
+
+// ─── Outcome helpers (TP / SL / BE) ──────────────────────────
+const OUTCOME_LABELS = { TP: 'Take Profit', SL: 'Stop Loss', BE: 'Break Even' };
+
+// TP rate = TP / (TP + SL); break-evens are excluded
+function tpRate(c) {
+  const decided = c.TP + c.SL;
+  return decided ? `${Math.round((c.TP / decided) * 100)}%` : '—';
+}
+
+function outcomePanelHTML(c) {
+  const tagged = c.TP + c.SL + c.BE;
+  return `
+    <div class="cal-outcomes">
+      <div class="weekly-header">Month Outcomes</div>
+      ${['TP', 'SL', 'BE'].map(k => `
+        <div class="outcome-row">
+          <span class="outcome-tag outcome-tag-${k.toLowerCase()}" title="${OUTCOME_LABELS[k]}">${k}</span>
+          <div class="weekly-bar-wrap">
+            <div class="outcome-bar outcome-bar-${k.toLowerCase()}" style="width:${tagged ? Math.round((c[k] / tagged) * 100) : 0}%"></div>
+          </div>
+          <span class="outcome-count">${c[k]}</span>
+        </div>`).join('')}
+      <div class="outcome-foot">
+        <span>TP rate <strong>${tpRate(c)}</strong></span>
+        ${c.untagged ? `<span title="Trades without a TP / SL / BE outcome">${c.untagged} untagged</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function buildYearOutcomeRows(year, yearTrades) {
+  return Array.from({ length: 12 }, (_, m) => {
+    const prefix = `${year}-${String(m + 1).padStart(2, '0')}`;
+    const monthTrades = yearTrades.filter(t => t.trade_date?.startsWith(prefix));
+    const c = countOutcomes(monthTrades);
+    const days = Object.values(aggregateByDate(monthTrades));
+    const winDays = days.filter(d => d.pnl > 0).length;
+    const lossDays = days.filter(d => d.pnl < 0).length;
+    return { ...c, winDays, lossDays, beDays: days.length - winDays - lossDays, month: m, label: new Date(year, m).toLocaleString('default', { month: 'long' }) };
   });
 }
 
@@ -218,7 +319,10 @@ function showDayDetail(date, dayData, allTrades) {
             <div class="dtrow-left">
               <span class="symbol-badge">${t.symbol}</span>
               <div class="dtrow-info">
-                <span class="side-badge side-${t.side?.toLowerCase()}">${t.side}</span>
+                <span class="dtrow-badges">
+                  <span class="side-badge side-${t.side?.toLowerCase()}">${t.side}</span>
+                  ${t.outcome ? `<span class="outcome-tag outcome-tag-${t.outcome.toLowerCase()}">${t.outcome}</span>` : ''}
+                </span>
                 <span class="dtrow-setup">${t.setup || '—'}</span>
               </div>
             </div>

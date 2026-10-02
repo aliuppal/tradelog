@@ -81,6 +81,7 @@ function tradesTableHTML() {
             ${th('Qty', 'quantity')}
             ${th('P&L', 'pnl')}
             ${th('R:R', 'rr')}
+            ${th('Result', 'outcome')}
             ${th('Setup', 'setup')}
             <th>Notes</th>
             <th>Actions</th>
@@ -111,6 +112,7 @@ function tradeRowHTML(t) {
       <td class="mono">${t.quantity || '—'}</td>
       <td class="mono ${pnlClass(pnl)}">${formatCurrency(pnl, true)}</td>
       <td class="mono">${t.rr ? t.rr + 'R' : '—'}</td>
+      <td>${t.outcome ? `<span class="outcome-tag outcome-tag-${t.outcome.toLowerCase()}">${t.outcome}</span>` : '—'}</td>
       <td><span class="setup-tag">${t.setup || '—'}</span></td>
       <td class="notes-cell">${t.notes ? `<span class="notes-preview" title="${t.notes}">${t.notes.slice(0, 40)}${t.notes.length > 40 ? '…' : ''}</span>` : '—'}</td>
       <td>
@@ -184,7 +186,7 @@ function applyFilters() {
   });
 
   filtered.sort((a, b) => {
-    let va = a[sortKey], vb = b[sortKey];
+    let va = a[sortKey] ?? '', vb = b[sortKey] ?? '';
     if (sortKey === 'pnl' || sortKey === 'entry_price' || sortKey === 'exit_price' || sortKey === 'rr') {
       va = parseFloat(va) || 0;
       vb = parseFloat(vb) || 0;

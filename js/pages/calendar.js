@@ -22,8 +22,8 @@ async function drawCalendar(container) {
   // Month totals
   const monthPnl = Object.values(byDate).reduce((a, d) => a + d.pnl, 0);
   const tradingDays = Object.keys(byDate).length;
-  const winDays = Object.values(byDate).filter(d => d.pnl > 0).length;
-  const lossDays = Object.values(byDate).filter(d => d.pnl < 0).length;
+  const winDays = Object.values(byDate).filter(d => d.result === 'win').length;
+  const lossDays = Object.values(byDate).filter(d => d.result === 'loss').length;
   const beDays = tradingDays - winDays - lossDays;
 
   const monthName = new Date(calYear, calMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -223,8 +223,8 @@ function buildYearOutcomeRows(year, yearTrades) {
     const monthTrades = yearTrades.filter(t => t.trade_date?.startsWith(prefix));
     const c = countOutcomes(monthTrades);
     const days = Object.values(aggregateByDate(monthTrades));
-    const winDays = days.filter(d => d.pnl > 0).length;
-    const lossDays = days.filter(d => d.pnl < 0).length;
+    const winDays = days.filter(d => d.result === 'win').length;
+    const lossDays = days.filter(d => d.result === 'loss').length;
     return { ...c, winDays, lossDays, beDays: days.length - winDays - lossDays, month: m, label: new Date(year, m).toLocaleString('default', { month: 'long' }) };
   });
 }
@@ -278,7 +278,8 @@ function buildCalendarCells(year, month, byDate) {
     let cls = 'cal-cell';
     if (isToday) cls += ' today';
     if (isWeekend) cls += ' weekend';
-    if (dayData) cls += dayData.pnl > 0 ? ' day-win' : dayData.pnl < 0 ? ' day-loss' : ' day-flat';
+    if (dayData) cls += ` day-${dayData.result}`;
+    const isBeDay = dayData?.result === 'be';
 
     const intensity = dayData ? Math.min(Math.abs(dayData.pnl) / 500, 1) : 0;
     const alpha = dayData ? (0.2 + intensity * 0.6).toFixed(2) : '';
@@ -288,8 +289,8 @@ function buildCalendarCells(year, month, byDate) {
       <div class="${cls}" data-date="${dateStr}" ${bgStyle}>
         <span class="cal-day-num">${d}</span>
         ${dayData ? `
-          <span class="cal-pnl ${pnlClass(dayData.pnl)}">${formatCurrency(dayData.pnl, true)}</span>
-          <span class="cal-trade-count">${dayData.count} trade${dayData.count !== 1 ? 's' : ''}</span>
+          <span class="cal-pnl ${isBeDay ? '' : pnlClass(dayData.pnl)}">${formatCurrency(dayData.pnl, true)}</span>
+          <span class="cal-trade-count">${isBeDay ? 'Break even' : `${dayData.count} trade${dayData.count !== 1 ? 's' : ''}`}</span>
         ` : ''}
       </div>`;
   }

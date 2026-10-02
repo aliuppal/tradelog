@@ -116,15 +116,22 @@ export async function deleteNote(id) {
 // ─── Aggregation helpers ─────────────────────────────────────
 
 export function aggregateByDate(trades) {
-  // Returns { 'YYYY-MM-DD': { pnl, count, wins, losses } }
+  // Returns { 'YYYY-MM-DD': { pnl, count, wins, losses, beTrades, result } }
+  // result: 'win' | 'loss' | 'be' | 'flat'. A day with a single trade marked BE is
+  // a break-even day regardless of its P&L; every other day goes by net P&L.
   const map = {};
   for (const t of trades) {
     const d = t.trade_date;
-    if (!map[d]) map[d] = { pnl: 0, count: 0, wins: 0, losses: 0 };
+    if (!map[d]) map[d] = { pnl: 0, count: 0, wins: 0, losses: 0, beTrades: 0 };
     map[d].pnl += parseFloat(t.pnl) || 0;
     map[d].count++;
     if ((parseFloat(t.pnl) || 0) > 0) map[d].wins++;
     else if ((parseFloat(t.pnl) || 0) < 0) map[d].losses++;
+    if (t.outcome === 'BE') map[d].beTrades++;
+  }
+  for (const day of Object.values(map)) {
+    day.result = day.count === 1 && day.beTrades === 1 ? 'be'
+      : day.pnl > 0 ? 'win' : day.pnl < 0 ? 'loss' : 'flat';
   }
   return map;
 }

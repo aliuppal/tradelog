@@ -110,7 +110,7 @@ function renderEquityChart(equity) {
   const labels = equity.map(e => e.date);
   const data = equity.map(e => e.equity);
   const lastVal = data[data.length - 1] || 0;
-  const color = lastVal >= 0 ? '#5fa657' : '#c8524d';
+  const color = lastVal >= 0 ? '#10B981' : '#F43F5E';
 
   new Chart(canvas, {
     type: 'line',
@@ -133,8 +133,8 @@ function renderEquityChart(equity) {
         callbacks: { label: ctx => ' $' + ctx.parsed.y.toFixed(2) }
       }},
       scales: {
-        x: { display: true, ticks: { color: '#999999', maxTicksLimit: 6 }, grid: { color: '#262626' } },
-        y: { display: true, ticks: { color: '#999999', callback: v => '$' + v }, grid: { color: '#262626' } }
+        x: { display: true, ticks: { color: '#64748B', maxTicksLimit: 6 }, grid: { color: 'rgba(32, 43, 62, 0.6)' } },
+        y: { display: true, ticks: { color: '#64748B', callback: v => '$' + v }, grid: { color: 'rgba(32, 43, 62, 0.6)' } }
       }
     }
   });
@@ -149,7 +149,7 @@ function renderWinLossChart(stats) {
       labels: ['Wins', 'Losses', 'Break Even'],
       datasets: [{
         data: [stats.wins, stats.losses, stats.totalTrades - stats.wins - stats.losses],
-        backgroundColor: ['#5fa657', '#c8524d', '#999999'],
+        backgroundColor: ['#10B981', '#F43F5E', '#64748B'],
         borderRadius: 6,
       }]
     },
@@ -157,8 +157,8 @@ function renderWinLossChart(stats) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#999999' }, grid: { display: false } },
-        y: { ticks: { color: '#999999', stepSize: 1 }, grid: { color: '#262626' } }
+        x: { ticks: { color: '#64748B' }, grid: { display: false } },
+        y: { ticks: { color: '#64748B', stepSize: 1 }, grid: { color: 'rgba(32, 43, 62, 0.6)' } }
       }
     }
   });

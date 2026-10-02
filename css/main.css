@@ -680,9 +680,6 @@ textarea { resize: vertical; min-height: 80px; }
 .cal-cell.day-win  { background: rgba(95, 166, 87, calc(var(--day-alpha, 0.3) * 0.45)); border-color: rgba(95, 166, 87, 0.35); }
 .cal-cell.day-loss { background: rgba(200, 82, 77, calc(var(--day-alpha, 0.3) * 0.45)); border-color: rgba(200, 82, 77, 0.35); }
 .cal-cell.day-flat { background: rgba(255, 255, 255, 0.04); }
-.cal-cell.day-be   { background: rgba(95, 166, 87, calc(var(--day-alpha, 0.5) * 0.45)); border-color: rgba(95, 166, 87, 0.35); }
-.cal-pnl.pnl-be    { color: var(--text-primary); }
-.cal-be-mark       { color: var(--green); }
 
 .cal-day-num { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
 .cal-pnl { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; }

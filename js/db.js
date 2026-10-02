@@ -116,15 +116,26 @@ export async function deleteNote(id) {
 // ─── Aggregation helpers ─────────────────────────────────────
 
 export function aggregateByDate(trades) {
-  // Returns { 'YYYY-MM-DD': { pnl, count, wins, losses } }
+  // Returns { 'YYYY-MM-DD': { pnl, count, wins, losses, result } }
+  // result is 'win' | 'loss' | 'be'. Trades tagged BE don't decide the day
+  // (a break-even that cost fees is still a BE day); only the other trades' P&L does.
   const map = {};
   for (const t of trades) {
     const d = t.trade_date;
-    if (!map[d]) map[d] = { pnl: 0, count: 0, wins: 0, losses: 0 };
-    map[d].pnl += parseFloat(t.pnl) || 0;
+    if (!map[d]) map[d] = { pnl: 0, count: 0, wins: 0, losses: 0, decisivePnl: 0, decisiveCount: 0 };
+    const pnl = parseFloat(t.pnl) || 0;
+    map[d].pnl += pnl;
     map[d].count++;
-    if ((parseFloat(t.pnl) || 0) > 0) map[d].wins++;
-    else if ((parseFloat(t.pnl) || 0) < 0) map[d].losses++;
+    if (pnl > 0) map[d].wins++;
+    else if (pnl < 0) map[d].losses++;
+    if (t.outcome !== 'BE') {
+      map[d].decisivePnl += pnl;
+      map[d].decisiveCount++;
+    }
+  }
+  for (const day of Object.values(map)) {
+    const p = Math.round(day.decisivePnl * 100); // cents, avoids float residue
+    day.result = !day.decisiveCount || p === 0 ? 'be' : p > 0 ? 'win' : 'loss';
   }
   return map;
 }

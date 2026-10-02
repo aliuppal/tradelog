@@ -22,9 +22,10 @@ async function drawCalendar(container) {
   // Month totals
   const monthPnl = Object.values(byDate).reduce((a, d) => a + d.pnl, 0);
   const tradingDays = Object.keys(byDate).length;
-  const winDays = Object.values(byDate).filter(d => d.pnl > 0).length;
-  const lossDays = Object.values(byDate).filter(d => d.pnl < 0).length;
+  const winDays = Object.values(byDate).filter(d => d.result === 'win').length;
+  const lossDays = Object.values(byDate).filter(d => d.result === 'loss').length;
   const beDays = tradingDays - winDays - lossDays;
+  const decidedDays = winDays + lossDays;
 
   const monthName = new Date(calYear, calMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -67,7 +68,7 @@ async function drawCalendar(container) {
         </div>
         <div class="cal-sum-item">
           <span class="cal-sum-label">Day Win Rate</span>
-          <span class="cal-sum-val ${tradingDays ? pnlClass(winDays - lossDays) : ''}">${tradingDays ? ((winDays / tradingDays) * 100).toFixed(0) + '%' : '—'}</span>
+          <span class="cal-sum-val ${decidedDays ? pnlClass(winDays - lossDays) : ''}" title="Win days ÷ (win + loss days); BE days excluded">${decidedDays ? ((winDays / decidedDays) * 100).toFixed(0) + '%' : '—'}</span>
         </div>
       </div>
 
@@ -223,8 +224,8 @@ function buildYearOutcomeRows(year, yearTrades) {
     const monthTrades = yearTrades.filter(t => t.trade_date?.startsWith(prefix));
     const c = countOutcomes(monthTrades);
     const days = Object.values(aggregateByDate(monthTrades));
-    const winDays = days.filter(d => d.pnl > 0).length;
-    const lossDays = days.filter(d => d.pnl < 0).length;
+    const winDays = days.filter(d => d.result === 'win').length;
+    const lossDays = days.filter(d => d.result === 'loss').length;
     return { ...c, winDays, lossDays, beDays: days.length - winDays - lossDays, month: m, label: new Date(year, m).toLocaleString('default', { month: 'long' }) };
   });
 }
@@ -278,9 +279,11 @@ function buildCalendarCells(year, month, byDate) {
     let cls = 'cal-cell';
     if (isToday) cls += ' today';
     if (isWeekend) cls += ' weekend';
-    if (dayData) cls += dayData.pnl > 0 ? ' day-win' : dayData.pnl < 0 ? ' day-loss' : ' day-flat';
+    if (dayData) cls += { win: ' day-win', loss: ' day-loss', be: ' day-be' }[dayData.result];
 
-    const intensity = dayData ? Math.min(Math.abs(dayData.pnl) / 500, 1) : 0;
+    const isBeDay = dayData?.result === 'be';
+    // BE days get a fixed green tint — their (usually tiny) amount shouldn't fade the tile
+    const intensity = dayData ? (isBeDay ? 0.5 : Math.min(Math.abs(dayData.pnl) / 500, 1)) : 0;
     const alpha = dayData ? (0.2 + intensity * 0.6).toFixed(2) : '';
     const bgStyle = dayData ? `style="--day-alpha:${alpha}"` : '';
 
@@ -288,8 +291,8 @@ function buildCalendarCells(year, month, byDate) {
       <div class="${cls}" data-date="${dateStr}" ${bgStyle}>
         <span class="cal-day-num">${d}</span>
         ${dayData ? `
-          <span class="cal-pnl ${pnlClass(dayData.pnl)}">${formatCurrency(dayData.pnl, true)}</span>
-          <span class="cal-trade-count">${dayData.count} trade${dayData.count !== 1 ? 's' : ''}</span>
+          <span class="cal-pnl ${isBeDay ? 'pnl-be' : pnlClass(dayData.pnl)}">${formatCurrency(dayData.pnl, true)}</span>
+          <span class="cal-trade-count">${dayData.count} trade${dayData.count !== 1 ? 's' : ''}${isBeDay ? ' · <span class="cal-be-mark">BE</span>' : ''}</span>
         ` : ''}
       </div>`;
   }

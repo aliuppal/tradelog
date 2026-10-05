@@ -1,5 +1,5 @@
 import { initAuth, signOut } from './auth.js';
-import { initRouter } from './router.js';
+import { initRouter, navigateTo, getCurrentPage } from './router.js';
 import { openTradeModal } from './modal.js';
 
 async function boot() {
@@ -78,10 +78,10 @@ function attachGlobalListeners() {
     sidebar?.classList.toggle('open');
   });
 
-  // ── Top bar add trade ─────────────────────────────────────────
-  document.getElementById('add-trade-btn-top')?.addEventListener('click', () => {
-    openTradeModal();
-  });
+  // ── Top bar / tab bar add trade — re-render the page after saving ──
+  const addTrade = () => openTradeModal(null, () => navigateTo(getCurrentPage()));
+  document.getElementById('add-trade-btn-top')?.addEventListener('click', addTrade);
+  document.getElementById('tab-add-trade')?.addEventListener('click', addTrade);
 
   // ── Close sidebar on outside click (mobile) ───────────────────
   document.addEventListener('click', (e) => {
@@ -92,5 +92,30 @@ function attachGlobalListeners() {
     }
   });
 }
+
+// ── Installable app (PWA) ──────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed', err));
+  });
+}
+
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-btn')?.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstall = null;
+  document.getElementById('install-btn')?.classList.add('hidden');
+});
+document.getElementById('install-btn')?.addEventListener('click', async () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  await deferredInstall.userChoice;
+  deferredInstall = null;
+  document.getElementById('install-btn')?.classList.add('hidden');
+});
 
 boot();

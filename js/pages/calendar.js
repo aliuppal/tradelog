@@ -1,5 +1,5 @@
 import { fetchTrades, aggregateByDate, countOutcomes } from '../db.js';
-import { formatCurrency, pnlClass, toLocalDateStr } from '../utils.js';
+import { formatCurrency, formatCurrencyCompact, pnlClass, toLocalDateStr } from '../utils.js';
 import { openTradeModal } from '../modal.js';
 
 let calYear = new Date().getFullYear();
@@ -289,7 +289,10 @@ function buildCalendarCells(year, month, byDate) {
       <div class="${cls}" data-date="${dateStr}" ${bgStyle}>
         <span class="cal-day-num">${d}</span>
         ${dayData ? `
-          <span class="cal-pnl ${isBeDay ? '' : pnlClass(dayData.pnl)}">${formatCurrency(dayData.pnl, true)}</span>
+          <span class="cal-pnl ${isBeDay ? '' : pnlClass(dayData.pnl)}">
+            <span class="cal-pnl-full">${formatCurrency(dayData.pnl, true)}</span>
+            <span class="cal-pnl-short">${formatCurrencyCompact(dayData.pnl)}</span>
+          </span>
           <span class="cal-trade-count">${isBeDay ? 'Break even' : `${dayData.count} trade${dayData.count !== 1 ? 's' : ''}`}</span>
         ` : ''}
       </div>`;

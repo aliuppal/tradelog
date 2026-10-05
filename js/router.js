@@ -20,7 +20,7 @@ let currentPage = 'dashboard';
 
 export function initRouter() {
   // Nav clicks
-  document.querySelectorAll('.nav-item').forEach(link => {
+  document.querySelectorAll('.nav-item, .tab-item').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
       const page = link.dataset.page;
@@ -39,7 +39,7 @@ export function navigateTo(page) {
   window.location.hash = page;
 
   // Update active nav
-  document.querySelectorAll('.nav-item').forEach(l => {
+  document.querySelectorAll('.nav-item, .tab-item').forEach(l => {
     l.classList.toggle('active', l.dataset.page === page);
   });
 

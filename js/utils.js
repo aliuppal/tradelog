@@ -26,6 +26,18 @@ export function formatCurrency(val, showPlus = false) {
   return str;
 }
 
+// Compact form for tight spaces (mobile calendar): -$1.90 · $240 · $1.2k · -$12k
+export function formatCurrencyCompact(val) {
+  const n = parseFloat(val) || 0;
+  const a = Math.abs(n);
+  let body;
+  if (a >= 100000) body = `${Math.round(a / 1000)}k`;
+  else if (a >= 999.5) body = `${(a / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  else if (a >= 10) body = `${Math.round(a)}`;
+  else body = a.toFixed(2);
+  return `${n < 0 ? '-' : ''}$${body}`;
+}
+
 // ─── Percent formatter ────────────────────────────────────────
 export function formatPct(val, showPlus = false) {
   const n = parseFloat(val) || 0;

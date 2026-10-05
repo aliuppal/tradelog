@@ -2,9 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#090D14" />
+  <meta name="description" content="TradeLog — trading journal with P&L calendar, TP/SL/BE outcomes and statistics." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TradeLog" />
   <title>TradeLog — Trading Journal</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23090D14'/%3E%3Crect x='1.5' y='1.5' width='21' height='21' fill='none' stroke='%2334D399' stroke-width='1.2'/%3E%3Cpath d='M5.5 16.5 L10 11.5 L13 14.5 L18.5 8' fill='none' stroke='%2334D399' stroke-width='1.6' stroke-linecap='square'/%3E%3Ccircle cx='18.5' cy='8' r='1.7' fill='%2334D399'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="css/main.css" />
@@ -85,6 +92,9 @@
         <i class="fa-solid fa-bars"></i>
       </button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <button class="btn-secondary btn-sm hidden" id="install-btn" title="Install TradeLog as an app">
+        <i class="fa-solid fa-download"></i> Install
+      </button>
       <button class="btn-primary btn-sm" id="add-trade-btn-top">
         <i class="fa-solid fa-plus"></i> Add Trade
       </button>
@@ -94,6 +104,15 @@
     <main class="page-container" id="page-container">
       <!-- Pages injected here by router -->
     </main>
+
+    <!-- Mobile bottom tab bar -->
+    <nav class="tabbar" aria-label="Primary">
+      <a href="#dashboard" class="tab-item" data-page="dashboard"><i class="fa-solid fa-gauge-high"></i><span>Home</span></a>
+      <a href="#calendar" class="tab-item" data-page="calendar"><i class="fa-solid fa-calendar-days"></i><span>Calendar</span></a>
+      <button class="tab-add" id="tab-add-trade" aria-label="Add trade"><i class="fa-solid fa-plus"></i></button>
+      <a href="#trades" class="tab-item" data-page="trades"><i class="fa-solid fa-list-ul"></i><span>Trades</span></a>
+      <a href="#stats" class="tab-item" data-page="stats"><i class="fa-solid fa-chart-line"></i><span>Stats</span></a>
+    </nav>
   </div>
 
   <!-- Trade Modal -->

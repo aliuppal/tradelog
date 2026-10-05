@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "TradeLog — Trading Journal",
+  "short_name": "TradeLog",
+  "description": "Trading journal with P&L calendar, TP/SL/BE outcomes and statistics.",
+  "start_url": "/#dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090D14",
+  "theme_color": "#090D14",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "PNL Calendar", "url": "/#calendar", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Trade Log", "url": "/#trades", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

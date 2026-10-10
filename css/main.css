@@ -1801,3 +1801,21 @@ body { -webkit-tap-highlight-color: transparent; }
 @media (display-mode: standalone) {
   html, body { overscroll-behavior-y: none; background: var(--bg-base); }
 }
+
+/* ── P&L field with sign toggle (trade modal) ────────────────── */
+.pnl-input-wrap { display: flex; align-items: stretch; gap: 6px; }
+.pnl-input-wrap input { flex: 1; min-width: 0; font-family: var(--font-mono); }
+.pnl-sign-btn {
+  flex: 0 0 auto;
+  min-width: 44px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pnl-sign-btn:hover { border-color: var(--accent); color: var(--accent); }
+.pnl-sign-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

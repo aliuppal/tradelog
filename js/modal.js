@@ -85,8 +85,12 @@ function tradeFormHTML(trade) {
 
         <!-- Row 3 -->
         <div class="form-group">
-          <label>P&L ($)</label>
-          <input type="number" id="trade-pnl" value="${d.pnl || ''}" placeholder="Auto-calculated" step="any" />
+          <label for="trade-pnl">P&L ($)</label>
+          <!-- text + inputmode: many mobile number keypads have no minus key, so ± flips the sign -->
+          <div class="pnl-input-wrap">
+            <button type="button" class="pnl-sign-btn" id="trade-pnl-sign" title="Make positive / negative" aria-label="Toggle positive or negative P&L">±</button>
+            <input type="text" inputmode="decimal" id="trade-pnl" value="${d.pnl ?? ''}" placeholder="Auto-calculated" pattern="-?[0-9]*[.,]?[0-9]*" title="A number, e.g. 344.40 or -188" />
+          </div>
         </div>
         <div class="form-group">
           <label>R:R Ratio</label>
@@ -176,7 +180,8 @@ async function handleSubmit(e) {
   const exit_price = parseFloat(document.getElementById('exit-price')?.value) || null;
   const stop_loss = parseFloat(document.getElementById('stop-loss')?.value) || null;
   const take_profit = parseFloat(document.getElementById('take-profit')?.value) || null;
-  const pnl = parseFloat(document.getElementById('trade-pnl')?.value) || calculatePnlValue();
+  const pnlRaw = parseFloat(document.getElementById('trade-pnl')?.value.replace(',', '.'));
+  const pnl = isNaN(pnlRaw) ? calculatePnlValue() : pnlRaw;
   const rr = parseFloat(document.getElementById('trade-rr')?.value) || null;
   const outcome = document.getElementById('trade-outcome')?.dataset.value || null;
   const setup = document.getElementById('trade-setup')?.value.trim() || null;
@@ -190,15 +195,17 @@ async function handleSubmit(e) {
 
   try {
     const existingId = document.getElementById('trade-form')?.dataset.id;
+    let saved;
     if (existingId) {
-      await updateTrade(existingId, payload);
+      saved = await updateTrade(existingId, payload);
       showToast('Trade updated', 'success');
     } else {
-      await insertTrade(payload);
+      saved = await insertTrade(payload);
       showToast('Trade added', 'success');
     }
     closeModal();
-    if (onSaveCallback) onSaveCallback();
+    if (onSaveCallback) onSaveCallback(saved);
+    else import('./router.js').then(m => m.navigateTo(m.getCurrentPage())); // no callback: re-render the page so the trade shows
   } catch (err) {
     const missingOutcome = /outcome/i.test(err.message || '');
     showToast(missingOutcome ? 'Outcome column missing — run supabase/migration_v4_outcome.sql' : err.message, 'error', missingOutcome ? 7000 : 3500);
@@ -240,6 +247,15 @@ export function openTradeModal(trade = null, onSave = null) {
       picker.dataset.value = next;
       picker.querySelectorAll('.outcome-opt').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === next));
     });
+  });
+
+  // ± flips the P&L sign (mobile keypads often lack a minus key)
+  document.getElementById('trade-pnl-sign')?.addEventListener('click', () => {
+    const input = document.getElementById('trade-pnl');
+    if (!input) return;
+    const v = input.value.trim();
+    input.value = v.startsWith('-') ? v.slice(1) : `-${v}`;
+    input.focus();
   });
 
   // Uppercase symbol

@@ -1,5 +1,5 @@
-import { fetchTrades, aggregateByDate, countOutcomes } from '../db.js';
-import { formatCurrency, formatCurrencyCompact, pnlClass, toLocalDateStr } from '../utils.js';
+import { fetchTrades, aggregateByDate, countOutcomes, deleteTrade } from '../db.js';
+import { formatCurrency, formatCurrencyCompact, pnlClass, toLocalDateStr, showToast } from '../utils.js';
 import { openTradeModal } from '../modal.js';
 
 let calYear = new Date().getFullYear();
@@ -10,7 +10,8 @@ export async function renderCalendar(container) {
   await drawCalendar(container);
 }
 
-async function drawCalendar(container) {
+// openDate: 'YYYY-MM-DD' day to reopen in the detail panel after redrawing
+async function drawCalendar(container, openDate = null) {
   // One query for the whole year: feeds the month grid and the year-by-month outcome table
   const yearTrades = await fetchTrades({ year: calYear });
   const monthPrefix = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
@@ -170,7 +171,7 @@ async function drawCalendar(container) {
     await drawCalendar(container);
   });
 
-  document.getElementById('cal-add-trade')?.addEventListener('click', () => openTradeModal());
+  document.getElementById('cal-add-trade')?.addEventListener('click', () => openTradeModal(null, onTradeSaved(container)));
   document.getElementById('day-detail-close')?.addEventListener('click', () => {
     document.getElementById('day-detail')?.classList.add('hidden');
   });
@@ -184,8 +185,24 @@ async function drawCalendar(container) {
 
   // Cell clicks
   container.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
-    cell.addEventListener('click', () => showDayDetail(cell.dataset.date, byDate[cell.dataset.date], trades));
+    cell.addEventListener('click', () => showDayDetail(container, cell.dataset.date, byDate[cell.dataset.date], trades));
   });
+
+  if (openDate && openDate.startsWith(monthPrefix)) {
+    showDayDetail(container, openDate, byDate[openDate], trades);
+  }
+}
+
+// After a save: jump to the trade's month, redraw, and show that day's trades
+function onTradeSaved(container) {
+  return (trade) => {
+    const date = trade?.trade_date;
+    if (date) {
+      calYear = +date.slice(0, 4);
+      calMonth = +date.slice(5, 7) - 1;
+    }
+    drawCalendar(container, date);
+  };
 }
 
 // ─── Outcome helpers (TP / SL / BE) ──────────────────────────
@@ -301,7 +318,7 @@ function buildCalendarCells(year, month, byDate) {
 }
 
 // ─── Day detail panel ────────────────────────────────────────
-function showDayDetail(date, dayData, allTrades) {
+function showDayDetail(container, date, dayData, allTrades) {
   const panel = document.getElementById('day-detail');
   const title = document.getElementById('day-detail-title');
   const body = document.getElementById('day-detail-body');
@@ -314,7 +331,7 @@ function showDayDetail(date, dayData, allTrades) {
   const dayTrades = allTrades.filter(t => t.trade_date === date);
   if (!dayTrades.length) {
     body.innerHTML = `<div class="empty-state small"><i class="fa-solid fa-inbox"></i><p>No trades on this day</p><button class="btn-primary btn-sm mt-2" id="detail-add">Add Trade</button></div>`;
-    document.getElementById('detail-add')?.addEventListener('click', () => openTradeModal({ trade_date: date }));
+    document.getElementById('detail-add')?.addEventListener('click', () => openTradeModal({ trade_date: date }, onTradeSaved(container)));
   } else {
     body.innerHTML = `
       <div class="day-trades-list">
@@ -333,7 +350,8 @@ function showDayDetail(date, dayData, allTrades) {
             <div class="dtrow-right">
               <span class="dtrow-pnl ${pnlClass(t.pnl)}">${formatCurrency(t.pnl, true)}</span>
               <div class="dtrow-actions">
-                <button class="btn-icon btn-xs edit-trade-btn" data-id="${t.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon btn-xs edit-trade-btn" data-id="${t.id}" title="Edit" aria-label="Edit trade"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon btn-xs delete-trade-btn" data-id="${t.id}" title="Delete" aria-label="Delete trade" style="color:var(--red)"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
           </div>`).join('')}
@@ -345,7 +363,21 @@ function showDayDetail(date, dayData, allTrades) {
     body.querySelectorAll('.edit-trade-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const trade = dayTrades.find(t => t.id === btn.dataset.id);
-        if (trade) openTradeModal(trade);
+        if (trade) openTradeModal(trade, onTradeSaved(container));
+      });
+    });
+    body.querySelectorAll('.delete-trade-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this trade? This cannot be undone.')) return;
+        btn.disabled = true;
+        try {
+          await deleteTrade(btn.dataset.id);
+          showToast('Trade deleted', 'success');
+          drawCalendar(container, date);
+        } catch (e) {
+          showToast(e.message, 'error');
+          btn.disabled = false;
+        }
       });
     });
   }
